@@ -1,0 +1,28 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core tests
+        run: swift test
+      - name: Build universal app
+        run: >-
+          xcodebuild -project TextInjector.xcodeproj -scheme TextInjector
+          -configuration Release -derivedDataPath build
+          ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build
+      - name: Verify signatures and architectures
+        run: |
+          codesign --verify --deep --strict build/Build/Products/Release/TextInjector.app
+          BUILT_ARCHS="$(lipo -archs build/Build/Products/Release/TextInjector.app/Contents/MacOS/TextInjector)"
+          [[ " $BUILT_ARCHS " == *" arm64 "* && " $BUILT_ARCHS " == *" x86_64 "* ]]

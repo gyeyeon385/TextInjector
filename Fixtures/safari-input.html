@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TextInjector · Safari 測試頁</title>
+<style>
+body { font: 17px system-ui; color: #162b3c; background: #f2f5f7; max-width: 880px; margin: 48px auto; padding: 0 24px; }
+h1 { letter-spacing: -1px; } .note { color: #526674; line-height: 1.65; }
+section { background: white; border: 1px solid #d9e1e7; border-radius: 14px; padding: 22px; margin: 18px 0; }
+input, textarea, [contenteditable] { display: block; box-sizing: border-box; width: 100%; padding: 14px; margin: 12px 0; font: 18px system-ui; border: 1px solid #99adbb; border-radius: 7px; }
+[contenteditable] { min-height: 70px; white-space: pre-wrap; }
+button { padding: 8px 14px; } output { display: block; white-space: pre-wrap; font: 14px ui-monospace; margin-top: 12px; }
+.pass { color: #08734c; }
+</style>
+<h1>Safari 鍵盤輸入測試</h1>
+<p class="note">點選下方欄位 → 回到 TextInjector → 按「輸入到 Safari」。預期文字：<strong>Hello 世界 안녕하세요 😀</strong>。此頁僅觀察鍵盤、input 與剪貼簿事件，不會寫入欄位內容。</p>
+<section><label for="plain">A · 一般 input</label><input id="plain" autocomplete="off"><output id="plain-result"></output></section>
+<section><label for="blocked">B · 禁止貼上的 textarea</label><textarea id="blocked" rows="3"></textarea><output id="blocked-result"></output></section>
+<section><label for="editable">C · contenteditable</label><div id="editable" contenteditable="true" role="textbox" aria-label="contenteditable 測試區"></div><output id="editable-result"></output></section>
+<section><strong>事件統計（只保留於本頁記憶體）</strong><output id="events"></output><button id="reset">重設統計</button></section>
+<script>
+const expected = 'Hello 世界 안녕하세요 😀';
+let counts = { keydown: 0, keyup: 0, beforeinput: 0, input: 0, paste: 0, copy: 0, cut: 0 };
+const display = () => document.querySelector('#events').textContent = JSON.stringify(counts, null, 2);
+for (const id of ['plain', 'blocked', 'editable']) {
+  const field = document.getElementById(id);
+  for (const type of Object.keys(counts)) field.addEventListener(type, event => {
+    counts[type]++;
+    if (id === 'blocked' && type === 'paste') event.preventDefault();
+    display();
+    if (type === 'input') {
+      const value = field.isContentEditable ? field.textContent : field.value;
+      const result = document.getElementById(id + '-result');
+      result.textContent = value === expected ? 'PASS · 測試文字完全一致' : `目前 ${Array.from(value).length} 個 Unicode scalar；請核對內容。`;
+      result.className = value === expected ? 'pass' : '';
+    }
+  });
+}
+document.getElementById('reset').onclick = () => { for (const key in counts) counts[key] = 0; display(); };
+display();
+</script>
+</html>
