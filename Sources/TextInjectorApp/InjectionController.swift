@@ -5,9 +5,11 @@ import TextInjectorCore
 
 @MainActor final class InjectionController: ObservableObject {
     static let sample = "Hello 世界 안녕하세요 😀"
+    static let multilineSample = "Hello  世界 안녕하세요 😀\n\t第二行：Tab 縮排\n\n  最後一行  "
     @Published var text = sample
     @Published var delayMS = 10
     @Published var focusDelayMS = 200
+    @Published var tabBehavior: TabBehavior = .key
     @Published private(set) var isRunning = false
     @Published private(set) var completed = 0
     @Published private(set) var total = 0
@@ -22,7 +24,8 @@ import TextInjectorCore
     func inject() {
         guard !isRunning else { return }
         let snapshot = text
-        let options = InjectionOptions(characterDelay: .milliseconds(delayMS), activationDelay: .milliseconds(focusDelayMS))
+        let options = InjectionOptions(characterDelay: .milliseconds(delayMS), activationDelay: .milliseconds(focusDelayMS),
+                                       tabBehavior: tabBehavior)
         isRunning = true
         completed = 0
         total = snapshot.count

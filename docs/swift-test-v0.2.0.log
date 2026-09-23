@@ -1,0 +1,72 @@
+Building for debugging...
+[2 / 4] TextInjectorCoreTests-product
+[4 / 6] TextInjectorCoreTests-product
+[10 / 11] TextInjectorCoreTests-product
+Build complete! (0.82 sec)
+Test Suite 'All tests' started at 2026-09-23 08:22:03.152.
+Test Suite 'TextInjectorCoreTests.xctest' started at 2026-09-23 08:22:03.153.
+Test Suite 'InjectionRunnerTests' started at 2026-09-23 08:22:03.153.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancelDuringActivationDelayPostsNothing]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancelDuringActivationDelayPostsNothing]' passed (0.001 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancellationInterruptsExpandedTab]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancellationInterruptsExpandedTab]' passed (0.201 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancelStopsBeforeNextEvent]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testCancelStopsBeforeNextEvent]' passed (0.209 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testFocusLossAfterTabStopsFollowingText]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testFocusLossAfterTabStopsFollowingText]' passed (0.303 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testFocusLossStopsBeforeNextEvent]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testFocusLossStopsBeforeNextEvent]' passed (0.207 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testInputValidationPrecedesActivation]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testInputValidationPrecedesActivation]' passed (0.001 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testMixedWhitespaceDeliveryAndProgress]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testMixedWhitespaceDeliveryAndProgress]' passed (0.828 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testOnlyWhitespaceIsNotEmpty]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testOnlyWhitespaceIsNotEmpty]' passed (0.515 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testPermissionDeniedDoesNotActivateOrPost]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testPermissionDeniedDoesNotActivateOrPost]' passed (0.001 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testPermissionRevokedStopsBeforeNextEvent]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testPermissionRevokedStopsBeforeNextEvent]' passed (0.209 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testSafariMissingOrActivationFailedPostsNothing]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testSafariMissingOrActivationFailedPostsNothing]' passed (0.000 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testSuccessfulInjectionAndProgress]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testSuccessfulInjectionAndProgress]' passed (0.210 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testTabExpansionKeepsSourceProgress]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testTabExpansionKeepsSourceProgress]' passed (0.206 seconds).
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testZeroDelayStillSeparatesTextFromSpecialKeys]' started.
+Test Case '-[TextInjectorCoreTests.InjectionRunnerTests testZeroDelayStillSeparatesTextFromSpecialKeys]' passed (0.621 seconds).
+Test Suite 'InjectionRunnerTests' passed at 2026-09-23 08:22:06.667.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 3.511 (3.514) seconds
+Test Suite 'InputTokenizerTests' started at 2026-09-23 08:22:06.667.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLeadingRepeatedTrailingSpacesAndTabs]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLeadingRepeatedTrailingSpacesAndTabs]' passed (0.001 seconds).
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLineEndingNormalizationAndBlankLines]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLineEndingNormalizationAndBlankLines]' passed (0.000 seconds).
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLiteralBackslashIsNotAnEscape]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLiteralBackslashIsNotAnEscape]' passed (0.000 seconds).
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLongMixedTextDoesNotLoseTokens]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testLongMixedTextDoesNotLoseTokens]' passed (0.024 seconds).
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testRejectsUnsupportedControlsAnywhere]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testRejectsUnsupportedControlsAnywhere]' passed (0.000 seconds).
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testSpecialKeyEventsHaveRealKeyCodesAndCleanFlags]' started.
+Test Case '-[TextInjectorCoreTests.InputTokenizerTests testSpecialKeyEventsHaveRealKeyCodesAndCleanFlags]' passed (0.045 seconds).
+Test Suite 'InputTokenizerTests' passed at 2026-09-23 08:22:06.739.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.071 (0.072) seconds
+Test Suite 'UnicodePayloadTests' started at 2026-09-23 08:22:06.739.
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testQuartzEventPayloadWithoutPosting]' started.
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testQuartzEventPayloadWithoutPosting]' passed (0.006 seconds).
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testRejectsControlsBeforePartialInput]' started.
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testRejectsControlsBeforePartialInput]' passed (0.000 seconds).
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testTenThousandCharacters]' started.
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testTenThousandCharacters]' passed (0.010 seconds).
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testUnicodeRoundTripAndScalarBoundaries]' started.
+Test Case '-[TextInjectorCoreTests.UnicodePayloadTests testUnicodeRoundTripAndScalarBoundaries]' passed (0.000 seconds).
+Test Suite 'UnicodePayloadTests' passed at 2026-09-23 08:22:06.755.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.016 (0.017) seconds
+Test Suite 'TextInjectorCoreTests.xctest' passed at 2026-09-23 08:22:06.755.
+	 Executed 24 tests, with 0 failures (0 unexpected) in 3.598 (3.603) seconds
+Test Suite 'All tests' passed at 2026-09-23 08:22:06.755.
+	 Executed 24 tests, with 0 failures (0 unexpected) in 3.598 (3.603) seconds
+◇ Test run started.
+↳ Testing Library Version: 2084
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

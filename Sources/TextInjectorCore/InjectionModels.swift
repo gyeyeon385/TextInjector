@@ -3,10 +3,13 @@ import Foundation
 public struct InjectionOptions: Sendable {
     public var characterDelay: Duration
     public var activationDelay: Duration
+    public var tabBehavior: TabBehavior
 
-    public init(characterDelay: Duration = .milliseconds(10), activationDelay: Duration = .milliseconds(200)) {
+    public init(characterDelay: Duration = .milliseconds(10), activationDelay: Duration = .milliseconds(200),
+                tabBehavior: TabBehavior = .key) {
         self.characterDelay = characterDelay
         self.activationDelay = activationDelay
+        self.tabBehavior = tabBehavior
     }
 }
 
@@ -22,7 +25,7 @@ public enum InjectionError: Error, LocalizedError, Equatable {
         case .activationFailed: "Safari 未能切換到前景，已停止輸入。"
         case .focusLost: "Safari 已失去焦點，已停止輸入。"
         case .eventCreationFailed: "無法建立鍵盤事件。"
-        case .unsupportedControl: "此 Sprint 僅支援單行文字；換行、Tab 與其他控制字元尚未啟用。"
+        case .unsupportedControl: "文字含有不支援的控制字元（例如 Backspace、Escape 或 NUL）。可使用空格、換行與 Tab。"
         case .invalidDelay: "輸入延遲必須介於 0–50 ms，切換延遲必須介於 100–2000 ms。"
         }
     }

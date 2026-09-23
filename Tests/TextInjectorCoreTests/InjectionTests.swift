@@ -63,11 +63,16 @@ final class UnicodePayloadTests: XCTestCase {
 }
 
 @MainActor private final class FakeKeyboard: KeyboardPosting {
-    var payloads: [[UInt16]] = []
+    var inputs: [KeyboardInput] = []
+    var times: [ContinuousClock.Instant] = []
+    var payloads: [[UInt16]] {
+        inputs.compactMap { if case .unicode(let units) = $0 { units } else { nil } }
+    }
     var afterPost: (() -> Void)?
-    func post(units: [UInt16], to processID: Int32) throws {
+    func post(_ input: KeyboardInput, to processID: Int32) throws {
         XCTAssertEqual(processID, 42)
-        payloads.append(units)
+        inputs.append(input)
+        times.append(ContinuousClock.now)
         afterPost?()
     }
 }
@@ -158,10 +163,120 @@ final class InjectionRunnerTests: XCTestCase {
     @MainActor func testInputValidationPrecedesActivation() async {
         let (runner, _, safari, keyboard) = environment()
         do {
-            try await runner.inject("Hello\nWorld", options: .init()) { _, _ in }
+            try await runner.inject("Hello\n\tWorld\u{1B}", options: .init()) { _, _ in }
             XCTFail("Expected unsupported input")
         } catch { XCTAssertEqual(error as? InjectionError, .unsupportedControl) }
         XCTAssertEqual(safari.activations, 0)
         XCTAssertTrue(keyboard.payloads.isEmpty)
+    }
+
+    @MainActor func testMixedWhitespaceDeliveryAndProgress() async throws {
+        let (runner, _, _, keyboard) = environment()
+        let text = " A  \r\n\n\t😀 \t"
+        var progress: [Int] = []
+        try await runner.inject(text, options: .init(characterDelay: .zero)) { count, total in
+            progress.append(count)
+            XCTAssertEqual(total, text.count)
+        }
+        XCTAssertEqual(keyboard.inputs, [
+            .unicode([32]), .unicode([65]), .unicode([32]), .unicode([32]),
+            .key(.enter), .key(.enter), .key(.tab), .unicode(Array("😀".utf16)),
+            .unicode([32]), .key(.tab)
+        ])
+        XCTAssertEqual(progress, Array(0...text.count))
+    }
+
+    @MainActor func testTabExpansionKeepsSourceProgress() async throws {
+        let (runner, _, _, keyboard) = environment()
+        var progress: [Int] = []
+        try await runner.inject("\tX", options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { count, total in
+            progress.append(count)
+            XCTAssertEqual(total, 2)
+        }
+        XCTAssertEqual(keyboard.inputs, Array(repeating: .unicode([32]), count: 4) + [.unicode([88])])
+        XCTAssertEqual(progress, [0, 1, 2])
+    }
+
+    @MainActor func testFocusLossAfterTabStopsFollowingText() async {
+        let (runner, _, safari, keyboard) = environment()
+        keyboard.afterPost = { safari.foreground = false }
+        do {
+            try await runner.inject("\tX", options: .init(characterDelay: .zero)) { _, _ in }
+            XCTFail("Expected focus loss")
+        } catch { XCTAssertEqual(error as? InjectionError, .focusLost) }
+        XCTAssertEqual(keyboard.inputs, [.key(.tab)])
+    }
+
+    @MainActor func testCancellationInterruptsExpandedTab() async {
+        let (runner, _, _, keyboard) = environment()
+        var task: Task<Void, Error>?
+        keyboard.afterPost = { task?.cancel() }
+        task = Task {
+            try await runner.inject("\tX", options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { _, _ in }
+        }
+        do { try await task?.value; XCTFail("Expected cancellation") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(keyboard.inputs, [.unicode([32])])
+    }
+
+    @MainActor func testOnlyWhitespaceIsNotEmpty() async throws {
+        let (runner, _, _, keyboard) = environment()
+        try await runner.inject(" \n\t", options: .init(characterDelay: .zero)) { _, _ in }
+        XCTAssertEqual(keyboard.inputs, [.unicode([32]), .key(.enter), .key(.tab)])
+    }
+
+    @MainActor func testZeroDelayStillSeparatesTextFromSpecialKeys() async throws {
+        let (runner, _, _, keyboard) = environment()
+        try await runner.inject("A\nB\tC", options: .init(characterDelay: .zero)) { _, _ in }
+        XCTAssertEqual(keyboard.times.count, 5)
+        for index in 1..<keyboard.times.count {
+            // Regression: without a boundary pause WebKit inserted the first
+            // following character before its Tab indentation handler ran.
+            XCTAssertGreaterThanOrEqual(keyboard.times[index - 1].duration(to: keyboard.times[index]), .milliseconds(95))
+        }
+    }
+}
+
+final class InputTokenizerTests: XCTestCase {
+    func testLineEndingNormalizationAndBlankLines() throws {
+        XCTAssertEqual(try InputTokenizer.tokenize("A\r\n\r\nB\rC\n\u{85}\u{2028}\u{2029}"),
+                       [.text("A"), .enter, .enter, .text("B"), .enter, .text("C"), .enter, .enter, .enter, .enter])
+    }
+
+    func testLeadingRepeatedTrailingSpacesAndTabs() throws {
+        XCTAssertEqual(try InputTokenizer.tokenize("  A\t\t \u{00A0}\u{3000} "),
+                       [.text(" "), .text(" "), .text("A"), .tab, .tab, .text(" "), .text("\u{00A0}"), .text("\u{3000}"), .text(" ")])
+    }
+
+    func testLiteralBackslashIsNotAnEscape() throws {
+        XCTAssertEqual(try InputTokenizer.tokenize(#"\n\t"#), [.text("\\"), .text("n"), .text("\\"), .text("t")])
+    }
+
+    func testRejectsUnsupportedControlsAnywhere() {
+        for control in ["\u{00}", "\u{08}", "\u{0B}", "\u{1B}", "\u{7F}", "\u{9F}"] {
+            XCTAssertThrowsError(try InputTokenizer.prepare("A\n\t" + control, tabBehavior: .key)) {
+                XCTAssertEqual($0 as? InjectionError, .unsupportedControl)
+            }
+        }
+    }
+
+    func testLongMixedTextDoesNotLoseTokens() throws {
+        let text = String(repeating: "😀漢\t \r\n", count: 2000)
+        let inputs = try InputTokenizer.prepare(text, tabBehavior: .key)
+        XCTAssertEqual(inputs.count, 10_000)
+        XCTAssertEqual(inputs.filter { $0 == [.key(.enter)] }.count, 2000)
+        XCTAssertEqual(inputs.filter { $0 == [.key(.tab)] }.count, 2000)
+    }
+
+    @MainActor func testSpecialKeyEventsHaveRealKeyCodesAndCleanFlags() throws {
+        for (key, expectedCode) in [(SpecialKey.enter, 36), (.tab, 48)] {
+            let (down, up) = try KeyboardInjector.events(for: .key(key))
+            XCTAssertEqual(down.type, .keyDown)
+            XCTAssertEqual(up.type, .keyUp)
+            for event in [down, up] {
+                XCTAssertEqual(event.getIntegerValueField(.keyboardEventKeycode), Int64(expectedCode))
+                XCTAssertEqual(event.flags, [])
+            }
+        }
     }
 }

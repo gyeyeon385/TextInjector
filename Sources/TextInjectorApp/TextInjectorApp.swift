@@ -13,7 +13,7 @@ import SwiftUI
     var body: some Scene {
         WindowGroup("TextInjector") {
             MainView(permission: permission, controller: controller)
-                .frame(minWidth: 640, minHeight: 580)
+                .frame(minWidth: 720, minHeight: 660)
         }
         .windowResizability(.contentMinSize)
     }

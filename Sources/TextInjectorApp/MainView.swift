@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(TextInjectorCore)
+import TextInjectorCore
+#endif
 
 struct MainView: View {
     @ObservedObject var permission: PermissionManager
@@ -12,7 +15,7 @@ struct MainView: View {
                     .resizable().frame(width: 58, height: 58)
                 VStack(alignment: .leading, spacing: 5) {
                     Text("TextInjector").font(.largeTitle.bold())
-                    Text("Safari Unicode 輸入 · v0.1 預覽版").foregroundStyle(.secondary)
+                    Text("Safari Unicode 輸入 · v0.2.0 預覽版").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("開啟 Safari 測試頁") { SafariManager().openFixture() }
@@ -38,7 +41,7 @@ struct MainView: View {
 
             Text("先在 Safari 點選目標文字欄位，再回到此視窗。App 會將 Safari 切到前景後開始輸入。")
                 .font(.callout).foregroundStyle(.secondary)
-            TextEditor(text: $controller.text)
+            PlainTextEditor(text: $controller.text, isEditable: !controller.isRunning)
                 .font(.system(.body, design: .monospaced))
                 .padding(8)
                 .background(.background)
@@ -49,6 +52,7 @@ struct MainView: View {
                 Text("\(controller.text.count) 個字元").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("還原測試文字") { controller.text = InjectionController.sample }
+                Button("多行與 Tab 範例") { controller.text = InjectionController.multilineSample }
                 Button("清除") { controller.text = "" }
             }.disabled(controller.isRunning)
 
@@ -61,7 +65,18 @@ struct MainView: View {
                 }
             }.disabled(controller.isRunning)
 
-            Text("此版本支援單行 Unicode 文字；不發送 Return 或 Tab。Safari 失焦即停止，文字不會儲存至磁碟。")
+            HStack {
+                Text("換行 → Return 鍵").font(.callout)
+                Spacer()
+                Picker("Tab 行為", selection: $controller.tabBehavior) {
+                    Text("實體 Tab 鍵").tag(TabBehavior.key)
+                    Text("轉成 4 個空格").tag(TabBehavior.fourSpaces)
+                }.frame(maxWidth: 280)
+            }.disabled(controller.isRunning)
+
+            Text(controller.tabBehavior == .key
+                 ? "Return 可能提交表單；Tab 依網頁行為縮排或切換欄位，後續文字會送到新欄位。請先用測試頁確認。"
+                 : "Tab 轉成 4 個空格，空格與空白行會保留。Return 可能提交表單，請先在多行欄位測試。")
                 .font(.caption).foregroundStyle(.secondary)
             if controller.isRunning {
                 ProgressView(value: Double(controller.completed), total: Double(max(controller.total, 1)))

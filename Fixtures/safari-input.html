@@ -2,41 +2,75 @@
 <html lang="zh-Hant">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TextInjector · Safari 測試頁</title>
+<title>TextInjector 0.2 · Safari 測試頁</title>
 <style>
-body { font: 17px system-ui; color: #162b3c; background: #f2f5f7; max-width: 880px; margin: 48px auto; padding: 0 24px; }
+body { font: 17px system-ui; color: #162b3c; background: #f2f5f7; max-width: 880px; margin: 40px auto; padding: 0 24px; }
 h1 { letter-spacing: -1px; } .note { color: #526674; line-height: 1.65; }
 section { background: white; border: 1px solid #d9e1e7; border-radius: 14px; padding: 22px; margin: 18px 0; }
-input, textarea, [contenteditable] { display: block; box-sizing: border-box; width: 100%; padding: 14px; margin: 12px 0; font: 18px system-ui; border: 1px solid #99adbb; border-radius: 7px; }
+input, textarea, [contenteditable] { display: block; box-sizing: border-box; width: 100%; padding: 14px; margin: 12px 0; font: 18px ui-monospace, monospace; border: 1px solid #99adbb; border-radius: 7px; tab-size: 4; }
 [contenteditable] { min-height: 70px; white-space: pre-wrap; }
-button { padding: 8px 14px; } output { display: block; white-space: pre-wrap; font: 14px ui-monospace; margin-top: 12px; }
-.pass { color: #08734c; }
+button, select { padding: 8px 14px; } output, pre { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font: 14px ui-monospace; margin-top: 12px; }
+.pass { color: #08734c; } small { color: #526674; }
 </style>
-<h1>Safari 鍵盤輸入測試</h1>
-<p class="note">點選下方欄位 → 回到 TextInjector → 按「輸入到 Safari」。預期文字：<strong>Hello 世界 안녕하세요 😀</strong>。此頁僅觀察鍵盤、input 與剪貼簿事件，不會寫入欄位內容。</p>
+<h1>Safari 空白與特殊鍵測試</h1>
+<p class="note">點選欄位 → 回到 TextInjector → 輸入。Return 由網頁處理；一般 textarea 的 Tab 會切換欄位。此頁不包含提交表單。</p>
+<label for="expectation">核對範例：</label>
+<select id="expectation">
+<option value="single">單行範例</option>
+<option value="tabs">多行與 Tab 範例（D 區，實體 Tab）</option>
+<option value="spaces">多行與 Tab 範例（Tab → 4 空格）</option>
+</select>
+<pre id="expected"></pre>
 <section><label for="plain">A · 一般 input</label><input id="plain" autocomplete="off"><output id="plain-result"></output></section>
-<section><label for="blocked">B · 禁止貼上的 textarea</label><textarea id="blocked" rows="3"></textarea><output id="blocked-result"></output></section>
+<section><label for="blocked">B · 禁止貼上的 textarea（原生 Tab 行為）</label><textarea id="blocked" rows="4" spellcheck="false"></textarea><output id="blocked-result"></output>
+<label for="next">Tab 後的下一個欄位</label><input id="next" autocomplete="off"><small>在 B 輸入 Left〔真正 Tab〕Right：B 應為 Left，本欄位應為 Right。</small><output id="next-result"></output></section>
 <section><label for="editable">C · contenteditable</label><div id="editable" contenteditable="true" role="textbox" aria-label="contenteditable 測試區"></div><output id="editable-result"></output></section>
+<section><label for="indent">D · 支援 Tab 縮排的測試編輯器</label><textarea id="indent" rows="6" spellcheck="false"></textarea>
+<small>此測試編輯器自行處理 Tab keydown，在游標處插入 U+0009；這是網頁編輯器行為，並非 App 的注入方式。此區亦禁止貼上。</small><output id="indent-result"></output></section>
 <section><strong>事件統計（只保留於本頁記憶體）</strong><output id="events"></output><button id="reset">重設統計</button></section>
 <script>
-const expected = 'Hello 世界 안녕하세요 😀';
-let counts = { keydown: 0, keyup: 0, beforeinput: 0, input: 0, paste: 0, copy: 0, cut: 0 };
-const display = () => document.querySelector('#events').textContent = JSON.stringify(counts, null, 2);
-for (const id of ['plain', 'blocked', 'editable']) {
+const samples = {
+  single: 'Hello 世界 안녕하세요 😀',
+  tabs: 'Hello  世界 안녕하세요 😀\n\t第二行：Tab 縮排\n\n  最後一行  '
+};
+samples.spaces = samples.tabs.replaceAll('\t', '    ');
+const fields = ['plain', 'blocked', 'next', 'editable', 'indent'];
+const eventTypes = ['keydown', 'keyup', 'beforeinput', 'input', 'paste', 'copy', 'cut'];
+let counts = Object.fromEntries(eventTypes.map(key => [key, 0]));
+counts.returnKey = 0; counts.tabKey = 0;
+const display = () => document.getElementById('events').textContent = JSON.stringify(counts, null, 2);
+const expected = () => samples[document.getElementById('expectation').value];
+function report(id) {
   const field = document.getElementById(id);
-  for (const type of Object.keys(counts)) field.addEventListener(type, event => {
+  const value = field.isContentEditable ? field.innerText : field.value;
+  const result = document.getElementById(id + '-result');
+  result.textContent = (value === expected() ? 'PASS · 文字與空白完全一致\n' : '') + JSON.stringify(value);
+  result.className = value === expected() ? 'pass' : '';
+}
+for (const id of fields) {
+  const field = document.getElementById(id);
+  for (const type of eventTypes) field.addEventListener(type, event => {
     counts[type]++;
-    if (id === 'blocked' && type === 'paste') event.preventDefault();
+    if (type === 'paste' && ['blocked', 'indent'].includes(id)) event.preventDefault();
+    if (type === 'keydown' && event.key === 'Enter') counts.returnKey++;
+    if (type === 'keydown' && event.key === 'Tab') counts.tabKey++;
     display();
-    if (type === 'input') {
-      const value = field.isContentEditable ? field.textContent : field.value;
-      const result = document.getElementById(id + '-result');
-      result.textContent = value === expected ? 'PASS · 測試文字完全一致' : `目前 ${Array.from(value).length} 個 Unicode scalar；請核對內容。`;
-      result.className = value === expected ? 'pass' : '';
-    }
+    if (type === 'input') report(id);
   });
 }
+document.getElementById('indent').addEventListener('keydown', event => {
+  if (event.key !== 'Tab' || event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return;
+  event.preventDefault();
+  const field = event.currentTarget;
+  field.setRangeText('\t', field.selectionStart, field.selectionEnd, 'end');
+  report('indent');
+});
+document.getElementById('expectation').onchange = () => {
+  document.getElementById('expected').textContent = '預期內容（JSON 顯示空白）：\n' + JSON.stringify(expected());
+  fields.forEach(report);
+};
 document.getElementById('reset').onclick = () => { for (const key in counts) counts[key] = 0; display(); };
+document.getElementById('expectation').onchange();
 display();
 </script>
 </html>
