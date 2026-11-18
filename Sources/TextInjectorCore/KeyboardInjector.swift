@@ -37,7 +37,7 @@ import CoreGraphics
 
     public func post(_ input: KeyboardInput, to processID: Int32) throws {
         let (down, up) = try Self.events(for: input)
-        // Pin the recipient to the verified Safari PID. This closes the race
+        // Pin the recipient to the verified browser PID. This closes the race
         // where foreground app changes between a focus check and global post.
         down.postToPid(processID)
         up.postToPid(processID)

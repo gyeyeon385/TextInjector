@@ -15,10 +15,12 @@ struct MainView: View {
                     .resizable().frame(width: 58, height: 58)
                 VStack(alignment: .leading, spacing: 5) {
                     Text("TextInjector").font(.largeTitle.bold())
-                    Text("Safari Unicode 輸入 · v0.2.0 預覽版").foregroundStyle(.secondary)
+                    Text("Safari / Chrome Unicode 輸入 · v0.3.0").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("開啟 Safari 測試頁") { SafariManager().openFixture() }
+                Button("開啟 \(controller.browser.displayName) 測試頁") {
+                    BrowserManager().openFixture(for: controller.browser)
+                }
                     .disabled(controller.isRunning)
             }
 
@@ -39,7 +41,17 @@ struct MainView: View {
                 }.padding(6)
             }
 
-            Text("先在 Safari 點選目標文字欄位，再回到此視窗。App 會將 Safari 切到前景後開始輸入。")
+            HStack {
+                Picker("注入目標", selection: $controller.browser) {
+                    ForEach(InjectionBrowser.allCases) { browser in
+                        Text(browser.displayName).tag(browser)
+                    }
+                }
+                .frame(maxWidth: 260)
+                .disabled(controller.isRunning)
+                Spacer()
+            }
+            Text("先在 \(controller.browser.displayName) 點選目標文字欄位，再回到此視窗。App 會將該瀏覽器切到前景後開始輸入。")
                 .font(.callout).foregroundStyle(.secondary)
             PlainTextEditor(text: $controller.text, isEditable: !controller.isRunning)
                 .font(.system(.body, design: .monospaced))
@@ -60,7 +72,7 @@ struct MainView: View {
                 Picker("每字延遲", selection: $controller.delayMS) {
                     ForEach([0, 5, 10, 20, 50], id: \.self) { Text("\($0) ms").tag($0) }
                 }
-                Picker("Safari 切換等待", selection: $controller.focusDelayMS) {
+                Picker("瀏覽器切換等待", selection: $controller.focusDelayMS) {
                     ForEach([100, 150, 200, 250, 500, 1000], id: \.self) { Text("\($0) ms").tag($0) }
                 }
             }.disabled(controller.isRunning)
@@ -87,7 +99,7 @@ struct MainView: View {
                 if controller.isRunning {
                     Button("停止") { controller.cancel() }.keyboardShortcut(.cancelAction)
                 } else {
-                    Button("輸入到 Safari") { controller.inject() }
+                    Button("輸入到\(controller.browser.displayName)") { controller.inject() }
                         .buttonStyle(.borderedProminent)
                         .disabled(controller.text.isEmpty || !permission.accessibilityGranted || !permission.postingGranted)
                 }

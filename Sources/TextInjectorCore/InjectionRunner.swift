@@ -4,40 +4,40 @@ import Foundation
     var canPost: Bool { get }
 }
 
-@MainActor public protocol SafariTargeting {
-    func activate() async throws -> Int32
-    func isForeground(processID: Int32) -> Bool
+@MainActor public protocol BrowserTargeting {
+    func activate(_ browser: InjectionBrowser) async throws -> Int32
+    func isForeground(_ browser: InjectionBrowser, processID: Int32) -> Bool
 }
 
 @MainActor public struct InjectionRunner {
     private let permission: any PermissionChecking
-    private let safari: any SafariTargeting
+    private let browserTarget: any BrowserTargeting
     private let keyboard: any KeyboardPosting
 
-    public init(permission: any PermissionChecking, safari: any SafariTargeting, keyboard: any KeyboardPosting) {
+    public init(permission: any PermissionChecking, browserTarget: any BrowserTargeting, keyboard: any KeyboardPosting) {
         self.permission = permission
-        self.safari = safari
+        self.browserTarget = browserTarget
         self.keyboard = keyboard
     }
 
-    public func inject(_ text: String, options: InjectionOptions,
+    public func inject(_ text: String, browser: InjectionBrowser, options: InjectionOptions,
                        progress: (Int, Int) -> Void) async throws {
         try Task.checkCancellation()
         guard options.characterDelay >= .zero, options.characterDelay <= .milliseconds(50),
               options.activationDelay >= .milliseconds(100), options.activationDelay <= .seconds(2)
         else { throw InjectionError.invalidDelay }
-        // Validate the entire input before activating Safari or sending any event.
+        // Validate the entire input before activating the selected browser or sending any event.
         let payloads = try InputTokenizer.prepare(text, tabBehavior: options.tabBehavior)
         guard permission.canPost else { throw InjectionError.permissionDenied }
-        let pid = try await safari.activate()
+        let pid = try await browserTarget.activate(browser)
         try await Task.sleep(for: options.activationDelay)
-        guard safari.isForeground(processID: pid) else { throw InjectionError.activationFailed }
+        guard browserTarget.isForeground(browser, processID: pid) else { throw InjectionError.activationFailed(browser) }
         progress(0, payloads.count)
         for (index, inputs) in payloads.enumerated() {
             for (eventIndex, input) in inputs.enumerated() {
                 try Task.checkCancellation()
                 guard permission.canPost else { throw InjectionError.permissionDenied }
-                guard safari.isForeground(processID: pid) else { throw InjectionError.focusLost }
+                guard browserTarget.isForeground(browser, processID: pid) else { throw InjectionError.focusLost(browser) }
                 try keyboard.post(input, to: pid)
                 // Pace expanded tabs too, and let cancellation interrupt them.
                 if eventIndex < inputs.count - 1 {

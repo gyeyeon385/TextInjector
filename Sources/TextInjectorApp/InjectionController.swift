@@ -9,16 +9,17 @@ import TextInjectorCore
     @Published var text = sample
     @Published var delayMS = 10
     @Published var focusDelayMS = 200
+    @Published var browser: InjectionBrowser = .safari
     @Published var tabBehavior: TabBehavior = .key
     @Published private(set) var isRunning = false
     @Published private(set) var completed = 0
     @Published private(set) var total = 0
-    @Published private(set) var status = "先在 Safari 點選文字欄位，再回到這裡開始測試。"
+    @Published private(set) var status = "先在選定的瀏覽器點選文字欄位，再回到這裡開始測試。"
     private var task: Task<Void, Never>?
     private let runner: InjectionRunner
 
     init(permission: PermissionManager) {
-        runner = InjectionRunner(permission: permission, safari: SafariManager(), keyboard: KeyboardInjector())
+        runner = InjectionRunner(permission: permission, browserTarget: BrowserManager(), keyboard: KeyboardInjector())
     }
 
     func inject() {
@@ -29,17 +30,18 @@ import TextInjectorCore
         isRunning = true
         completed = 0
         total = snapshot.count
-        status = "正在準備 Safari…"
+        let selectedBrowser = browser
+        status = "正在準備 \(selectedBrowser.displayName)…"
         task = Task { [weak self] in
             guard let self else { return }
             defer { isRunning = false; task = nil }
             do {
-                try await runner.inject(snapshot, options: options) { current, count in
+                try await runner.inject(snapshot, browser: selectedBrowser, options: options) { current, count in
                     completed = current
                     total = count
                     status = "正在發送鍵盤事件… \(current) / \(count)"
                 }
-                status = "已發送 \(completed) 個字元。請核對 Safari 欄位的實際內容。"
+                status = "已發送 \(completed) 個字元。請核對 \(selectedBrowser.displayName) 欄位的實際內容。"
             } catch is CancellationError {
                 status = "已停止（已發送 \(completed) / \(total)）。"
             } catch {

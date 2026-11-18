@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — Development Preview
+
+- Add a browser selector for Safari and Google Chrome.
+- Activate the selected browser, verify its frontmost process and scope keyboard events to its PID.
+- Open the no-paste input fixture in the selected browser and use browser-specific status and error messages.
+- Keep the existing whitespace, multiline, Return and Tab behavior.
+- Add automated coverage for Chrome target selection, process verification and focus loss.
+
 ## 0.2.0 — 2026-09-23 (Preview)
 
 - Preserve leading, repeated and trailing spaces, blank lines and Unicode text.

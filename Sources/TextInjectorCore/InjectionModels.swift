@@ -1,5 +1,26 @@
 import Foundation
 
+public enum InjectionBrowser: String, CaseIterable, Identifiable, Sendable {
+    case safari
+    case chrome
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .safari: "Safari"
+        case .chrome: "Google Chrome"
+        }
+    }
+
+    public var bundleIdentifier: String {
+        switch self {
+        case .safari: "com.apple.Safari"
+        case .chrome: "com.google.Chrome"
+        }
+    }
+}
+
 public struct InjectionOptions: Sendable {
     public var characterDelay: Duration
     public var activationDelay: Duration
@@ -14,16 +35,17 @@ public struct InjectionOptions: Sendable {
 }
 
 public enum InjectionError: Error, LocalizedError, Equatable {
-    case emptyText, permissionDenied, safariNotRunning, activationFailed
-    case focusLost, eventCreationFailed, unsupportedControl, invalidDelay
+    case emptyText, permissionDenied
+    case browserNotRunning(InjectionBrowser), activationFailed(InjectionBrowser), focusLost(InjectionBrowser)
+    case eventCreationFailed, unsupportedControl, invalidDelay
 
     public var errorDescription: String? {
         switch self {
         case .emptyText: "請先輸入測試文字。"
         case .permissionDenied: "請在系統設定授予 TextInjector 輔助使用權限，再重新檢查。"
-        case .safariNotRunning: "請先開啟 Safari，並點選測試頁的文字欄位。"
-        case .activationFailed: "Safari 未能切換到前景，已停止輸入。"
-        case .focusLost: "Safari 已失去焦點，已停止輸入。"
+        case .browserNotRunning(let browser): "請先開啟 \(browser.displayName)，並點選目標文字欄位。"
+        case .activationFailed(let browser): "\(browser.displayName) 未能切換到前景，已停止輸入。"
+        case .focusLost(let browser): "\(browser.displayName) 已失去焦點，已停止輸入。"
         case .eventCreationFailed: "無法建立鍵盤事件。"
         case .unsupportedControl: "文字含有不支援的控制字元（例如 Backspace、Escape 或 NUL）。可使用空格、換行與 Tab。"
         case .invalidDelay: "輸入延遲必須介於 0–50 ms，切換延遲必須介於 100–2000 ms。"

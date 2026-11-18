@@ -8,7 +8,8 @@ mkdir -p "$DIST"
 DIST="$(cd "$DIST" && pwd)"
 PACKAGE_WORK="$(mktemp -d)"
 trap 'rm -rf "$PACKAGE_WORK"' EXIT
-bash "$ROOT/scripts/build-icon.sh"
+# Use the checked-in AppIcon.icns for reproducible packaging. Run build-icon.sh
+# explicitly when the source artwork changes.
 xcodebuild -project "$ROOT/TextInjector.xcodeproj" -scheme TextInjector \
   -configuration Release -derivedDataPath "$DERIVED" \
   ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO build

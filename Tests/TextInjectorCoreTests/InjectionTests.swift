@@ -50,16 +50,21 @@ final class UnicodePayloadTests: XCTestCase {
     var canPost = true
 }
 
-@MainActor private final class FakeSafari: SafariTargeting {
+@MainActor private final class FakeBrowserTarget: BrowserTargeting {
     var foreground = true
+    var foregroundBrowser: InjectionBrowser = .safari
     var activations = 0
+    var activatedBrowser: InjectionBrowser?
     var activationError: InjectionError?
-    func activate() async throws -> Int32 {
+    func activate(_ browser: InjectionBrowser) async throws -> Int32 {
         activations += 1
+        activatedBrowser = browser
         if let activationError { throw activationError }
         return 42
     }
-    func isForeground(processID: Int32) -> Bool { foreground && processID == 42 }
+    func isForeground(_ browser: InjectionBrowser, processID: Int32) -> Bool {
+        foreground && foregroundBrowser == browser && processID == 42
+    }
 }
 
 @MainActor private final class FakeKeyboard: KeyboardPosting {
@@ -77,19 +82,28 @@ final class UnicodePayloadTests: XCTestCase {
     }
 }
 
+final class InjectionBrowserTests: XCTestCase {
+    func testSupportedBrowsersHaveExplicitBundleIdentifiers() {
+        XCTAssertEqual(InjectionBrowser.safari.bundleIdentifier, "com.apple.Safari")
+        XCTAssertEqual(InjectionBrowser.chrome.bundleIdentifier, "com.google.Chrome")
+        XCTAssertEqual(InjectionBrowser.safari.displayName, "Safari")
+        XCTAssertEqual(InjectionBrowser.chrome.displayName, "Google Chrome")
+    }
+}
+
 final class InjectionRunnerTests: XCTestCase {
-    @MainActor private func environment() -> (InjectionRunner, FakePermission, FakeSafari, FakeKeyboard) {
+    @MainActor private func environment() -> (InjectionRunner, FakePermission, FakeBrowserTarget, FakeKeyboard) {
         let permission = FakePermission()
-        let safari = FakeSafari()
+        let browser = FakeBrowserTarget()
         let keyboard = FakeKeyboard()
-        return (InjectionRunner(permission: permission, safari: safari, keyboard: keyboard), permission, safari, keyboard)
+        return (InjectionRunner(permission: permission, browserTarget: browser, keyboard: keyboard), permission, browser, keyboard)
     }
 
     @MainActor func testPermissionDeniedDoesNotActivateOrPost() async {
         let (runner, permission, safari, keyboard) = environment()
         permission.canPost = false
         do {
-            try await runner.inject("Hello", options: .init()) { _, _ in }
+            try await runner.inject("Hello", browser: .safari, options: .init()) { _, _ in }
             XCTFail("Expected denial")
         } catch { XCTAssertEqual(error as? InjectionError, .permissionDenied) }
         XCTAssertEqual(safari.activations, 0)
@@ -100,9 +114,9 @@ final class InjectionRunnerTests: XCTestCase {
         let (runner, _, safari, keyboard) = environment()
         keyboard.afterPost = { safari.foreground = false }
         do {
-            try await runner.inject("Hello", options: .init(characterDelay: .zero)) { _, _ in }
+            try await runner.inject("Hello", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in }
             XCTFail("Expected focus loss")
-        } catch { XCTAssertEqual(error as? InjectionError, .focusLost) }
+        } catch { XCTAssertEqual(error as? InjectionError, .focusLost(.safari)) }
         XCTAssertEqual(keyboard.payloads.count, 1)
     }
 
@@ -110,7 +124,7 @@ final class InjectionRunnerTests: XCTestCase {
         let (runner, permission, _, keyboard) = environment()
         keyboard.afterPost = { permission.canPost = false }
         do {
-            try await runner.inject("Hello", options: .init(characterDelay: .zero)) { _, _ in }
+            try await runner.inject("Hello", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in }
             XCTFail("Expected revocation")
         } catch { XCTAssertEqual(error as? InjectionError, .permissionDenied) }
         XCTAssertEqual(keyboard.payloads.count, 1)
@@ -120,7 +134,7 @@ final class InjectionRunnerTests: XCTestCase {
         let (runner, _, _, keyboard) = environment()
         var task: Task<Void, Error>?
         keyboard.afterPost = { task?.cancel() }
-        task = Task { try await runner.inject("Hello", options: .init(characterDelay: .zero)) { _, _ in } }
+        task = Task { try await runner.inject("Hello", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in } }
         do { try await task?.value; XCTFail("Expected cancellation") }
         catch { XCTAssertTrue(error is CancellationError) }
         XCTAssertEqual(keyboard.payloads.count, 1)
@@ -128,7 +142,7 @@ final class InjectionRunnerTests: XCTestCase {
 
     @MainActor func testCancelDuringActivationDelayPostsNothing() async {
         let (runner, _, _, keyboard) = environment()
-        let task = Task { try await runner.inject("Hello", options: .init(activationDelay: .seconds(2))) { _, _ in } }
+        let task = Task { try await runner.inject("Hello", browser: .safari, options: .init(activationDelay: .seconds(2))) { _, _ in } }
         await Task.yield()
         task.cancel()
         do { try await task.value; XCTFail("Expected cancellation") }
@@ -140,7 +154,7 @@ final class InjectionRunnerTests: XCTestCase {
         let (runner, _, _, keyboard) = environment()
         let text = "Hello 世界 안녕하세요 😀"
         var counts: [Int] = []
-        try await runner.inject(text, options: .init(characterDelay: .zero)) { current, total in
+        try await runner.inject(text, browser: .safari, options: .init(characterDelay: .zero)) { current, total in
             counts.append(current)
             XCTAssertEqual(total, text.count)
         }
@@ -148,25 +162,56 @@ final class InjectionRunnerTests: XCTestCase {
         XCTAssertEqual(String(decoding: keyboard.payloads.flatMap { $0 }, as: UTF16.self), text)
     }
 
-    @MainActor func testSafariMissingOrActivationFailedPostsNothing() async {
-        for failure in [InjectionError.safariNotRunning, .activationFailed] {
-            let (runner, _, safari, keyboard) = environment()
-            safari.activationError = failure
-            do {
-                try await runner.inject("Hello", options: .init()) { _, _ in }
-                XCTFail("Expected activation failure")
-            } catch { XCTAssertEqual(error as? InjectionError, failure) }
-            XCTAssertTrue(keyboard.payloads.isEmpty)
+    @MainActor func testBrowserMissingOrActivationFailedPostsNothing() async {
+        for browser in InjectionBrowser.allCases {
+            for failure in [InjectionError.browserNotRunning(browser), .activationFailed(browser)] {
+                let (runner, _, target, keyboard) = environment()
+                target.activationError = failure
+                do {
+                    try await runner.inject("Hello", browser: browser, options: .init()) { _, _ in }
+                    XCTFail("Expected activation failure")
+                } catch { XCTAssertEqual(error as? InjectionError, failure) }
+                XCTAssertTrue(keyboard.payloads.isEmpty)
+            }
         }
     }
 
-    @MainActor func testInputValidationPrecedesActivation() async {
-        let (runner, _, safari, keyboard) = environment()
+    @MainActor func testChromeIsTheSelectedAndVerifiedTarget() async throws {
+        let (runner, _, target, keyboard) = environment()
+        target.foregroundBrowser = .chrome
+        try await runner.inject("Chrome 😀", browser: .chrome, options: .init(characterDelay: .zero)) { _, _ in }
+        XCTAssertEqual(target.activatedBrowser, .chrome)
+        XCTAssertEqual(String(decoding: keyboard.payloads.flatMap { $0 }, as: UTF16.self), "Chrome 😀")
+    }
+
+    @MainActor func testWrongBrowserInForegroundFailsBeforePosting() async {
+        let (runner, _, target, keyboard) = environment()
+        target.foregroundBrowser = .safari
         do {
-            try await runner.inject("Hello\n\tWorld\u{1B}", options: .init()) { _, _ in }
+            try await runner.inject("Chrome", browser: .chrome, options: .init()) { _, _ in }
+            XCTFail("Expected activation failure")
+        } catch { XCTAssertEqual(error as? InjectionError, .activationFailed(.chrome)) }
+        XCTAssertTrue(keyboard.payloads.isEmpty)
+    }
+
+    @MainActor func testBrowserCanLoseForegroundAndStopsBeforeNextEvent() async {
+        let (runner, _, target, keyboard) = environment()
+        target.foregroundBrowser = .chrome
+        keyboard.afterPost = { target.foreground = false }
+        do {
+            try await runner.inject("Chrome", browser: .chrome, options: .init(characterDelay: .zero)) { _, _ in }
+            XCTFail("Expected focus loss")
+        } catch { XCTAssertEqual(error as? InjectionError, .focusLost(.chrome)) }
+        XCTAssertEqual(keyboard.payloads.count, 1)
+    }
+
+    @MainActor func testInputValidationPrecedesActivation() async {
+        let (runner, _, target, keyboard) = environment()
+        do {
+            try await runner.inject("Hello\n\tWorld\u{1B}", browser: .safari, options: .init()) { _, _ in }
             XCTFail("Expected unsupported input")
         } catch { XCTAssertEqual(error as? InjectionError, .unsupportedControl) }
-        XCTAssertEqual(safari.activations, 0)
+        XCTAssertEqual(target.activations, 0)
         XCTAssertTrue(keyboard.payloads.isEmpty)
     }
 
@@ -174,7 +219,7 @@ final class InjectionRunnerTests: XCTestCase {
         let (runner, _, _, keyboard) = environment()
         let text = " A  \r\n\n\t😀 \t"
         var progress: [Int] = []
-        try await runner.inject(text, options: .init(characterDelay: .zero)) { count, total in
+        try await runner.inject(text, browser: .safari, options: .init(characterDelay: .zero)) { count, total in
             progress.append(count)
             XCTAssertEqual(total, text.count)
         }
@@ -189,7 +234,7 @@ final class InjectionRunnerTests: XCTestCase {
     @MainActor func testTabExpansionKeepsSourceProgress() async throws {
         let (runner, _, _, keyboard) = environment()
         var progress: [Int] = []
-        try await runner.inject("\tX", options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { count, total in
+        try await runner.inject("\tX", browser: .safari, options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { count, total in
             progress.append(count)
             XCTAssertEqual(total, 2)
         }
@@ -198,12 +243,12 @@ final class InjectionRunnerTests: XCTestCase {
     }
 
     @MainActor func testFocusLossAfterTabStopsFollowingText() async {
-        let (runner, _, safari, keyboard) = environment()
-        keyboard.afterPost = { safari.foreground = false }
+        let (runner, _, target, keyboard) = environment()
+        keyboard.afterPost = { target.foreground = false }
         do {
-            try await runner.inject("\tX", options: .init(characterDelay: .zero)) { _, _ in }
+            try await runner.inject("\tX", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in }
             XCTFail("Expected focus loss")
-        } catch { XCTAssertEqual(error as? InjectionError, .focusLost) }
+        } catch { XCTAssertEqual(error as? InjectionError, .focusLost(.safari)) }
         XCTAssertEqual(keyboard.inputs, [.key(.tab)])
     }
 
@@ -212,7 +257,7 @@ final class InjectionRunnerTests: XCTestCase {
         var task: Task<Void, Error>?
         keyboard.afterPost = { task?.cancel() }
         task = Task {
-            try await runner.inject("\tX", options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { _, _ in }
+            try await runner.inject("\tX", browser: .safari, options: .init(characterDelay: .zero, tabBehavior: .fourSpaces)) { _, _ in }
         }
         do { try await task?.value; XCTFail("Expected cancellation") }
         catch { XCTAssertTrue(error is CancellationError) }
@@ -221,13 +266,13 @@ final class InjectionRunnerTests: XCTestCase {
 
     @MainActor func testOnlyWhitespaceIsNotEmpty() async throws {
         let (runner, _, _, keyboard) = environment()
-        try await runner.inject(" \n\t", options: .init(characterDelay: .zero)) { _, _ in }
+        try await runner.inject(" \n\t", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in }
         XCTAssertEqual(keyboard.inputs, [.unicode([32]), .key(.enter), .key(.tab)])
     }
 
     @MainActor func testZeroDelayStillSeparatesTextFromSpecialKeys() async throws {
         let (runner, _, _, keyboard) = environment()
-        try await runner.inject("A\nB\tC", options: .init(characterDelay: .zero)) { _, _ in }
+        try await runner.inject("A\nB\tC", browser: .safari, options: .init(characterDelay: .zero)) { _, _ in }
         XCTAssertEqual(keyboard.times.count, 5)
         for index in 1..<keyboard.times.count {
             // Regression: without a boundary pause WebKit inserted the first
@@ -235,6 +280,7 @@ final class InjectionRunnerTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(keyboard.times[index - 1].duration(to: keyboard.times[index]), .milliseconds(95))
         }
     }
+
 }
 
 final class InputTokenizerTests: XCTestCase {

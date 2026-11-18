@@ -19,7 +19,7 @@ struct PlainTextEditor: NSViewRepresentable {
         editor.isAutomaticDashSubstitutionEnabled = false
         editor.isAutomaticTextReplacementEnabled = false
         editor.isAutomaticSpellingCorrectionEnabled = false
-        editor.setAccessibilityLabel("要輸入到 Safari 的文字")
+        editor.setAccessibilityLabel("要注入的文字")
         editor.delegate = context.coordinator
         editor.string = text
         editor.isEditable = isEditable

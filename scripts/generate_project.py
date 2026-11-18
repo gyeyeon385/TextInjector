@@ -25,7 +25,7 @@ for path in sorted((root / 'Sources').rglob('*.swift')):
     children.append(file_id)
     sources.append(add(relative + ':build', f'isa = PBXBuildFile; fileRef = {file_id};'))
 
-fixture = add('fixture', 'isa = PBXFileReference; lastKnownFileType = text.html; path = "Fixtures/safari-input.html"; sourceTree = SOURCE_ROOT;')
+fixture = add('fixture', 'isa = PBXFileReference; lastKnownFileType = text.html; path = "Fixtures/browser-input.html"; sourceTree = SOURCE_ROOT;')
 children.append(fixture)
 fixture_build = add('fixture:build', f'isa = PBXBuildFile; fileRef = {fixture};')
 icon = add('icon', 'isa = PBXFileReference; lastKnownFileType = image.icns; path = "Resources/AppIcon.icns"; sourceTree = SOURCE_ROOT;')
