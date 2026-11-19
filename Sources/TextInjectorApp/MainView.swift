@@ -15,7 +15,7 @@ struct MainView: View {
                     .resizable().frame(width: 58, height: 58)
                 VStack(alignment: .leading, spacing: 5) {
                     Text("TextInjector").font(.largeTitle.bold())
-                    Text("Safari / Chrome Unicode 輸入 · v0.3.0").foregroundStyle(.secondary)
+                    Text("Safari / Chrome Unicode 輸入 · v0.3.1").foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("開啟 \(controller.browser.displayName) 測試頁") {
@@ -26,16 +26,19 @@ struct MainView: View {
 
             GroupBox {
                 HStack {
-                    Image(systemName: permission.accessibilityGranted && permission.postingGranted ? "checkmark.shield.fill" : "lock.shield")
-                        .foregroundStyle(permission.accessibilityGranted && permission.postingGranted ? .green : .orange)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(permission.accessibilityGranted && permission.postingGranted ? "已取得輔助使用權限" : "需要輔助使用權限")
-                        Text("僅在按下授權按鈕時提出系統請求。")
+                        Label("輔助使用：\(permission.accessibilityGranted ? "已授予" : "尚未授予")",
+                              systemImage: permission.accessibilityGranted ? "checkmark.circle.fill" : "xmark.circle")
+                            .foregroundStyle(permission.accessibilityGranted ? .green : .orange)
+                        Label("鍵盤事件：\(permission.postingGranted ? "已授予" : "尚未授予")",
+                              systemImage: permission.postingGranted ? "checkmark.circle.fill" : "xmark.circle")
+                            .foregroundStyle(permission.postingGranted ? .green : .orange)
+                        Text("返回此 App 後會自動重新檢查。")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if !permission.accessibilityGranted || !permission.postingGranted {
-                        Button("授予權限") { permission.request() }
+                        Button("授予缺少的權限") { permission.request() }
                     }
                     Button("系統設定") { permission.openSettings() }
                 }.padding(6)
@@ -114,6 +117,9 @@ struct MainView: View {
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active { permission.refresh() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            permission.refresh()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
             controller.cancel()

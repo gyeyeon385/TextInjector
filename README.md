@@ -7,12 +7,12 @@
 
 **[下載 v0.3.0 預覽版 ZIP](https://github.com/gyeyeon385/TextInjector/releases/tag/v0.3.0)** · [安裝說明](docs/INSTALL.md) · [驗證紀錄](docs/VALIDATION-0.3.0.md)
 
-目前工作樹是 v0.3.0 開發版：原生 macOS SwiftUI 工具，以 CoreGraphics Unicode 鍵盤事件將文字送到 Safari 或 Google Chrome。保留空格、多行與實體 Tab 支援；Chrome 版尚待瀏覽器端實機驗收。
+GitHub 公開下載目前仍是 v0.3.0。工作樹已加入 v0.3.1 熱修正候選版：保護拼音輸入法組字，並在 App 返回前景時重新檢查權限；候選版尚未發布，拼音實測仍待完成。產品以 CoreGraphics Unicode 鍵盤事件將文字送到 Safari 或 Google Chrome，並保留空格、多行與實體 Tab 支援。
 
 ## 開始使用
 
 1. 解壓 v0.3.0 ZIP，將 `TextInjector.app` 拖至「應用程式」後開啟。支援 macOS 13+，包含 Apple Silicon 與 Intel 架構（Intel 尚未硬體實測）。
-2. 按「授予權限」，在「系統設定 → 隱私權與安全性 → 輔助使用」開啟 **TextInjector**。App 啟動時只檢查，不主動要求權限。
+2. 按畫面上的授權按鈕，依系統提示授予權限。App 啟動時只檢查，不主動要求權限。
 3. 在「注入目標」選擇 Safari 或 Google Chrome，按「開啟…測試頁」，點選 **B · 禁止貼上的 textarea**。
 4. 回到 TextInjector，保留預設的 `Hello 世界 안녕하세요 😀`，按「輸入到…」。
 5. 核對測試頁顯示 `PASS · 測試文字完全一致`，且 `paste` 計數維持 0。
@@ -24,7 +24,7 @@
 ## 本次實作
 
 - SwiftUI 介面與 AppKit 純文字編輯器；可直接輸入 Tab，保留連續空格與空白行。提供單行／多行範例、字數、清除、固定輸入延遲與瀏覽器切換延遲。
-- `PermissionManager`：Accessibility / event posting 權限檢查、使用者觸發的請求、每秒重新整理狀態。
+- `PermissionManager`：分開顯示 Accessibility / event posting 權限，只在狀態變化時發布更新，並在 App 返回前景時重新檢查。
 - `KeyboardInjector`：UTF-16 Unicode payload、完整 key-down / key-up 配對、清除 synthetic modifier flags。
 - Unicode 以 Swift `Character` 控制節奏；超長組合字元採最多 16 UTF-16 units 的 scalar 邊界分割，不切斷 surrogate pair。
 - `BrowserManager`：只允許 Safari (`com.apple.Safari`) 與 Google Chrome (`com.google.Chrome`)；啟用所選瀏覽器，不尋找或修改 DOM。
@@ -68,7 +68,8 @@ Fixtures/browser-input.html   Safari / Chrome 空格、多行、Tab 移焦與縮
 Resources/Info.plist          App 身分與最低版本
 TextInjector.xcodeproj/       原生 Xcode App 專案與共享 scheme
 scripts/generate_project.py  可重建專案設定的無依賴工具
-docs/VALIDATION-0.3.0.md      本版本驗證紀錄與後續檢核
+docs/VALIDATION-0.3.0.md      v0.3.0 驗證紀錄與後續檢核
+docs/VALIDATION-0.3.1.md      熱修正候選版驗證狀態
 ```
 
 新增 Swift 檔案後可執行 `python3 scripts/generate_project.py` 更新 Xcode sources 清單；這會重建 project 設定，請勿用它覆寫自行新增但尚未反映至腳本的設定。

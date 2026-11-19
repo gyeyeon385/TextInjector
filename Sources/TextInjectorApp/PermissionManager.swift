@@ -14,14 +14,22 @@ import TextInjectorCore
     init() { refresh() }
 
     func refresh() {
-        accessibilityGranted = AXIsProcessTrusted()
-        postingGranted = CGPreflightPostEventAccess()
+        let accessibilityIsGranted = AXIsProcessTrusted()
+        let postingIsGranted = CGPreflightPostEventAccess()
+        if accessibilityGranted != accessibilityIsGranted {
+            accessibilityGranted = accessibilityIsGranted
+        }
+        if postingGranted != postingIsGranted {
+            postingGranted = postingIsGranted
+        }
     }
 
     func request() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
-        if AXIsProcessTrusted() && !CGPreflightPostEventAccess() {
+        if !AXIsProcessTrusted() {
+            _ = AXIsProcessTrustedWithOptions(options)
+        }
+        if !CGPreflightPostEventAccess() {
             _ = CGRequestPostEventAccess()
         }
         refresh()

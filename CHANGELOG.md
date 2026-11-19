@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — Hotfix Candidate
+
+- Preserve uncommitted pinyin / IME marked text in the source editor so SwiftUI updates do not replace the composition.
+- Keep the editor's committed text when SwiftUI briefly delivers an older binding snapshot after IME commit.
+- Refresh permission state on app activation and publish updates only when Accessibility or keyboard-event access actually changes.
+- Show Accessibility and keyboard-event access separately, and request missing permissions from the grant button.
+
 ## 0.3.0 — Development Preview
 
 - Add a browser selector for Safari and Google Chrome.
